@@ -3,6 +3,11 @@
 
 ## Build Setup
 ```
+# dowload
+git clone https://github.com/44021987/vue-permission-control.git
+
+cd vue-pemission-control
+
 # Install dependencies
 npm install
 
@@ -37,6 +42,8 @@ npm run build --report
 - 登录后全局存储过滤后的路由 store/modules/permission.js
 - src目录下permission.js做路由拦截，添加过滤后的路由，(同时可设置白名单，过滤其他路径的请求)
 
+## 写在最后
+- 一个问题：管理员动态修改路由后，其他角色需要下次登录才能得到新的权限信息。该角色在下次登录之前的某些操作可能是非法的，这时候除了后端在提交操作的时候验证权限，前端我暂时还想不到好的解决方案，有更好的解决方案跪求交流。
 
 
 
