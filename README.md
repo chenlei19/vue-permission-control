@@ -6,7 +6,102 @@
 权限配置分为2种：
 - 从后台请求过来权限，前端动态配置菜单
   - 从后期可维护性来看，权限做在后端更好些；通过后台返回的菜单动态构建路由，通过router.addRoutes()方法添加路由，所有的字段全都维护在后端，通过配置修改
-    - 动态添加路由路由
+    - ***菜单权限*** ：后台请求的菜单格式
+      ```js
+        [
+          {
+            path: '/example',
+            name: 'Example',
+            meta: {
+              title: '模块',
+              icon: 'example'
+            },
+            children: [{
+              path: 'table-demo',
+              name: 'table-demo',
+
+              meta: {
+                title: '表格',
+                icon: 'table',
+                roles: 'table:permission:create,table:permission:update', // 按钮权限字符串，用于判断按钮级别权限
+                component: '/modules/table-demo' // 本地保存路径
+              }
+            }]
+          }
+        ]
+      ```
+    - 在vuex里转化路由
+      ```js
+      // 动态import路由
+      const _import = (path, callback) => {
+        import(`@/views${path}/index.vue`).then(res => {
+          callback && callback(res.default)
+        })
+      }
+      /**
+      * Filter asynchronous routing tables
+      * @param routes asyncRoutes
+      */
+      export function filterAsyncRoutes(routes) {
+        const res = []
+        routes.forEach(route => {
+          const tmp = { ...route }
+          const getChildren = (data, islev1 = true) => {
+            if (!data) return
+            data.forEach((child, i) => {
+              const childrenComponentPath = (child.meta && child.meta.component) || ''
+              if (i === 0 && islev1 === true) {
+                tmp.redirect = tmp.path + '/' + child.path
+              }
+              if (childrenComponentPath) {
+                _import(childrenComponentPath, (res) => {
+                  child['component'] = res
+                })
+              }
+              if (child.children && child.children.length) getChildren(child.children, false)
+            })
+          }
+          tmp.component = Layout
+          getChildren(tmp.children)
+          res.push(tmp)
+        })
+        return res
+      }
+      const state = {
+        routes: [],
+        addRoutes: [],
+        btnPermission: ''
+      }
+
+      const mutations = {
+        SET_ROUTES: (state, routes) => {
+          state.addRoutes = routes
+          state.routes = constantRoutes.concat(routes)
+        },
+        SET_BTN_PERMISSION: (state, permission) => {
+          state.btnPermission = permission
+        }
+      }
+
+      const actions = {
+        generateRoutes({ commit }, roles) {
+          return new Promise(resolve => {
+            // 此处getMenu实际是从后台接口获取的菜单，格式在前面有说明
+            const accessedRoutes = filterAsyncRoutes(getMenu)
+            commit('SET_ROUTES', accessedRoutes)
+            resolve(accessedRoutes)
+          })
+        }
+      }
+
+      export default {
+        namespaced: true,
+        state,
+        mutations,
+        actions
+      }
+      ```
+    - 动态添加路由
       ```js
       // 每次进入路由的时候判断是否需要添加路由
       router.beforeEach(async(to, from, next) => {
@@ -19,14 +114,14 @@
           } else {
             const hasRoles = store.getters.permission_routes.length // 判断是否需要添加路由
             if (hasRoles) {
-              // 路由存在不需要再次添加路由，vuex里保存进入页面的按钮权限字符
+              // 路由存在不需，要再次添加路由vuex里保存进入页面的按钮权限字符
               store.commit('permission/SET_BTN_PERMISSION', to.meta.roles || '')
               next()
             } else {
               try {
-                // 从后台请求菜单，转换成路由,并且在vuex中保存用于渲染导航
+                // 重点：请求菜单并转换成路由,并且在vuex中保存用于渲染导航
                 const accessRoutes = await store.dispatch('permission/generateRoutes', [])
-                // 添加
+                // 添加转化后的路由
                 router.addRoutes(accessRoutes)
                 // vuex里保存进入页面的按钮权限字符
                 store.commit('permission/SET_BTN_PERMISSION', to.meta.roles || '')
@@ -50,7 +145,7 @@
       })
 
       ```
-      - 按钮权限：新建btn-permission.js，然后在main.js里引入
+      - ***按钮权限***：新建btn-permission.js，然后在main.js里引入
       ```js
         // 新建btn-permission.js
         import Vue from 'vue'
@@ -88,28 +183,7 @@
           </div>
         </template>
       ```
-      - 路由格式
-      ```js
-        [
-          {
-            path: '/',
-            component: Layout,
-            redirect: '/dashboard',
-            children: [{
-              path: 'dashboard',
-              name: 'dashboard',
-              // 可以在后端保存路径，循环生成component
-              component: () => import('@/views/dashboard/index'),
-              meta: {
-                title: '首页',
-                icon: 'dashboard',
-                // 按钮级别权限字符串
-                roles: 'dashboard:permission:create,dashboard:permission:update'
-              }
-            }]
-          }
-        ]
-      ```
+      
 - 完全由前端配置：这种方案的权限不能动态进行配置，也可通过meta.roles进行判断，大致思路也一致，只是前端自己通过角色权限进行过滤
 ***
 #### 实现思路
