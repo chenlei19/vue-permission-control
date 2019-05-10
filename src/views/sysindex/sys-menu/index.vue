@@ -49,7 +49,7 @@
               <el-table-column type="selection" width="35" />
               <el-table-column label="类型" width="140">
                 <template slot-scope="scope">
-                  <span>{{ !scope.row.permission  ? '菜单' : '按钮'}}</span>
+                  <span>{{ !scope.row.permission ? '菜单' : '按钮' }}</span>
                 </template>
               </el-table-column>
               <el-table-column prop="name" label="菜单名称" show-overflow-tooltip fixed width="150" />

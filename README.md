@@ -6,102 +6,80 @@
 权限配置分为2种：
 - 从后台请求过来权限，前端动态配置菜单
   > 从后期可维护性来看，权限做在后端更好些；通过后台返回的菜单动态构建路由，通过router.addRoutes()方法添加路由，所有的字段全都维护在后端，通过配置修改
-    - ***菜单权限*** ：后台请求的菜单格式
+    - ***菜单权限*** ：[后台请求的菜单](https://github.com/44021987/vue-permission-control/blob/master/src/api/menu.js)
       ```js
-        [
-          {
-            path: '/example',
-            name: 'Example',
-            meta: {
-              title: '模块',
-              icon: 'example'
-            },
-            children: [{
-              path: 'table-demo',
-              name: 'table-demo',
-
-              meta: {
-                title: '表格',
-                icon: 'table',
-                roles: 'table:permission:create,table:permission:update', // 按钮权限字符串，用于判断按钮级别权限
-                component: '/modules/table-demo' // 本地保存路径
-              }
-            }]
+      const router = [{
+        href: '/sys',
+        name: 'System',
+        meta: {
+          name: '平台管理',
+          icon: 'example'
+        },
+        children: [{
+          href: 'sys-user',
+          name: 'sys-user',
+          meta: {
+            target: '/sysindex/sys-user',
+            name: '角色管理',
+            icon: 'peoples'
           }
-        ]
+        },
+        {
+          href: 'sys-menu',
+          name: 'sys-menu',
+          meta: {
+            target: '/sysindex/sys-menu',
+            name: '菜单管理',
+            icon: 'documentation'
+
+          }
+        }]
+      }]
       ```
-    - 在vuex里转化路由
+   
+    - [在vuex里转化路由](https://github.com/44021987/vue-permission-control/blob/master/src/store/modules/permission.js)
       ```js
-      // 动态import路由
-      const _import = (path, callback) => {
-        import(`@/views${path}/index.vue`).then(res => {
-          callback && callback(res.default)
-        })
-      }
       /**
-      * Filter asynchronous routing tables
+       * Filter asynchronous routing tables
       * @param routes asyncRoutes
       */
-      export function filterAsyncRoutes(routes) {
+      export function filterAsyncRoutes(routes = []) {
         const res = []
         routes.forEach(route => {
-          const tmp = { ...route }
-          const getChildren = (data, islev1 = true) => {
-            if (!data) return
-            data.forEach((child, i) => {
-              const childrenComponentPath = (child.meta && child.meta.component) || ''
-              if (i === 0 && islev1 === true) {
-                tmp.redirect = tmp.path + '/' + child.path
-              }
-              if (childrenComponentPath) {
-                _import(childrenComponentPath, (res) => {
-                  child['component'] = res
-                })
-              }
-              if (child.children && child.children.length) getChildren(child.children, false)
-            })
-          }
+          const tmp = createMenuPath(route)
+          const childrenRoute = getChildren(tmp)
           tmp.component = Layout
-          getChildren(tmp.children)
-          res.push(tmp)
+          if (childrenRoute) {
+            res.push(getChildren(tmp))
+          } else {
+            res.push(tmp)
+          }
+        })
+        res.push({
+          path: '*',
+          redirect: '/404',
+          hidden: true
         })
         return res
       }
-      const state = {
-        routes: [],
-        addRoutes: [],
-        btnPermission: ''
-      }
-
-      const mutations = {
-        SET_ROUTES: (state, routes) => {
-          state.addRoutes = routes
-          state.routes = constantRoutes.concat(routes)
-        },
-        SET_BTN_PERMISSION: (state, permission) => {
-          state.btnPermission = permission
-        }
-      }
-
       const actions = {
-        generateRoutes({ commit }, roles) {
+        generateRoutes({ rootState, commit }) {
           return new Promise(resolve => {
-            // 此处getMenu实际是从后台接口获取的菜单，格式在前面有说明
-            const accessedRoutes = filterAsyncRoutes(getMenu)
+            // getRoleMenu({ loginname: rootState.user.name }).then(res => {
+            //   const accessedRoutes = filterAsyncRoutes(res.data)
+            //   commit('SET_ROUTES', accessedRoutes)
+            //   resolve(accessedRoutes)
+            // })
+            const memu = (rootState.user.name === 's001') ? getMenu_soo1 : (rootState.user.name === 'test_sg' ? getMenu_test_sg : [])
+            const accessedRoutes = filterAsyncRoutes(memu)
             commit('SET_ROUTES', accessedRoutes)
             resolve(accessedRoutes)
           })
         }
       }
-
-      export default {
-        namespaced: true,
-        state,
-        mutations,
-        actions
-      }
       ```
-    - 动态添加路由
+    - [动态添加路由](https://github.com/44021987/vue-permission-control/blob/master/src/permission.js)
+      - 每次进入路由的时候判断是否需要添加路由
       ```js
       // 每次进入路由的时候判断是否需要添加路由
       router.beforeEach(async(to, from, next) => {
@@ -147,12 +125,10 @@
       ```
       - ***按钮权限***：新建btn-permission.js，然后在main.js里引入
       ```js
-        // 新建btn-permission.js
         import Vue from 'vue'
         import store from '@/store'
         const _has = val => {
           const isShow = false
-          // 从store中获取当前页面的按钮权限，就是在每次进入路由之前存到vuex里的，上一步有说明
           const permissionStr = store.getters.roles
           if (permissionStr === undefined || permissionStr == null) {
             return isShow

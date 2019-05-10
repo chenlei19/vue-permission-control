@@ -55,7 +55,7 @@
           <el-button v-has="{permission:'table:create'}" type="primary" size="mini" @click="handleAdd">新增</el-button>
           <el-button v-has="{permission:'table:edit'}" type="primary" size="mini" @click="changeEdit">编辑</el-button>
           <el-button v-has="{permission:'table:remove'}" type="primary" size="mini" @click="changeDel">删除</el-button>
-      
+
         </el-button-group>
       </template>
       <template v-slot:table>
@@ -76,7 +76,7 @@
           <el-table-column v-if="show" prop="transFileno" label="id" />
           <el-table-column prop="transFileno" label="批文文号" show-overflow-tooltip />
           <el-table-column prop="transFilename" label="批文名称" />
-       
+
           <el-table-column label="批次年度" width="100">
             <template slot-scope="scope">
               <el-tooltip content="点击查看详情" placement="right">
